@@ -27,10 +27,17 @@ overLapping0 (a, b) = lo a <= lo b && hi a >= hi b
 overLapping :: (MRange, MRange) -> Bool
 overLapping (a, b) = overLapping0 (a, b) || overLapping0 (b, a)
 
+overLapping2 :: (MRange, MRange) -> Bool
+overLapping2 (a, b) = (lo a <= lo b && hi a >= lo b) ||
+  (lo b <= lo a && hi b >= lo a)
+
 main = do
   args <- getArgs
   lines <- readLines (head args)
   let ranges = map parseRanges lines
   let overlapping = map overLapping ranges
-  let out1 = length (filter (== True) overlapping)
+  let out1 = length $ filter id overlapping
+  let overlapping2 = map overLapping2 ranges
+  let out2 = length $ filter id overlapping2
   print out1
+  print out2
