@@ -54,13 +54,17 @@ object d5 extends App {
   }.get
 
   var (stacks: Array[List[Char]], next_line: Int) = parseStacks(input);
-  println(stacks.mkString(", "));
+  var stacks2 = stacks.clone;
   for (move <- parseMoves(input.drop(next_line))) {
-    println(move)
+    // println(move)
     for (_ <- 0 until move.num) {
       stacks(move.to) +:= stacks(move.from).head
       stacks(move.from) = stacks(move.from).tail
     }
+    stacks2(move.to) = stacks2(move.from).take(move.num) ::: stacks2(move.to)
+    stacks2(move.from) = stacks2(move.from).drop(move.num)
+    // println(stacks2.mkString(","))
   }
   println(stacks.map(_.head).mkString);
+  println(stacks2.map(_.head).mkString);
 }
