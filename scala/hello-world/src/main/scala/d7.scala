@@ -20,15 +20,10 @@ object d7 extends App {
             acc match {
               case None => None
               case Some(acc) => {
-                if (file_or_folder.isInstanceOf[File]) {
-                  Some(acc + file_or_folder.asInstanceOf[File].size)
-                } else {
-                  val fol = file_or_folder.asInstanceOf[Folder];
-                  if (fol.listed && fol.size.isDefined) {
-                    Some(acc + fol.size.get)
-                  } else {
-                    None
-                  }
+                file_or_folder match {
+                  case File(size)                      => Some(acc + size)
+                  case Folder(files, true, Some(size)) => Some(acc + size)
+                  case _                               => None
                 }
               }
             }
@@ -93,11 +88,30 @@ object d7 extends App {
     };
     root.files.values
       .map(x =>
-        if (x.isInstanceOf[Folder]) {
-          p1(x.asInstanceOf[Folder])
-        } else 0
+        x match {
+          case File(size) => 0
+          case f: Folder  => p1(f)
+        }
       )
       .sum + this_size
+  }
+
+  def flatten_folders(f: FileOrFolder): Seq[Folder] = {
+    f match {
+      case _: File    => Seq()
+      case fo: Folder => fo +: fo.files.values.toSeq.flatMap(flatten_folders)
+    }
+  }
+
+  def p2(root: Folder): Int = {
+    val size_to_shrink = 30000000 - (70000000 - root.size.get);
+    val all_folders: Seq[Folder] = flatten_folders(root)
+    all_folders
+      .sortBy { _.size.get }
+      .filter(_.size.get > size_to_shrink)
+      .head
+      .size
+      .get
   }
 
   val filename = args(0);
@@ -107,4 +121,5 @@ object d7 extends App {
   val tree = getTree(input)
   println(tree);
   println(p1(tree))
+  println(p2(tree))
 }
