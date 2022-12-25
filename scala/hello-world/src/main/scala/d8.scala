@@ -1,5 +1,6 @@
 import scala.util.Using
 import scala.io.Source
+
 object d8 extends App {
   def parseInput(inp: Array[String]): Array[Array[Int]] = {
     inp.map(_.map(_.asDigit).toArray)
