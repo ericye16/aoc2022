@@ -16,7 +16,7 @@ object d11 extends App {
   import Operator._
 
   class Monkey(
-      var items: ArrayDeque[Int],
+      var items: ArrayDeque[Long],
       val op_1: Operand,
       val op_2: Operand,
       val op: Operator,
@@ -26,6 +26,18 @@ object d11 extends App {
   ) {
     override def toString =
       s"Monkey($items, $op_1, $op, $op_2, $test_div, $true_monkey, $false_monkey)"
+
+    // Deep copy for clone
+    override def clone(): Monkey =
+      new Monkey(
+        items.clone,
+        op_1,
+        op_2,
+        op,
+        test_div,
+        true_monkey,
+        false_monkey
+      )
   }
 
   def parseMonkeys(input: Array[String]): Array[Monkey] = {
@@ -42,9 +54,9 @@ object d11 extends App {
         case monkey_idx_re() =>
       }
       line_idx += 1
-      val items: Array[Int] = input(line_idx) match {
+      val items: Array[Long] = input(line_idx) match {
         case starting_re(items_str) => {
-          items_str.split(",").map(_.trim).map(_.toInt)
+          items_str.split(",").map(_.trim).map(_.toLong)
         }
       }
       line_idx += 1
@@ -97,7 +109,7 @@ object d11 extends App {
     monkeys.toArray
   }
 
-  def operation(old: Int, op1: Operand, op: Operator, op2: Operand): Int = {
+  def operation(old: Long, op1: Operand, op: Operator, op2: Operand): Long = {
     val o1 = op1 match {
       case Old()      => old
       case Literal(l) => l
@@ -140,11 +152,46 @@ object d11 extends App {
     num_inspected.sorted(Ordering.Int.reverse).take(2).reduce((a, b) => a * b)
   }
 
+  def p2(monkeys: Array[Monkey]): Long = {
+    val num_monkeys = monkeys.size
+    var monkeys0 = monkeys
+    var num_inspected: Array[Long] = Array.ofDim(num_monkeys)
+    for (i <- 0 until num_monkeys) {
+      num_inspected(i) = 0
+    }
+    val lcm = monkeys0.map(_.test_div).reduce((a, b) => a * b)
+    // println(s"lcm: $lcm")
+    for (r <- 0 until 10000) {
+      for (m <- 0 until num_monkeys) {
+        while (!monkeys0(m).items.isEmpty) {
+          var worry = monkeys0(m).items.removeHead()
+          worry =
+            operation(worry, monkeys0(m).op_1, monkeys0(m).op, monkeys0(m).op_2)
+          worry %= lcm
+          val next_monkey = if (worry % monkeys0(m).test_div == 0) {
+            monkeys0(m).true_monkey
+          } else {
+            monkeys0(m).false_monkey
+          }
+          monkeys0(next_monkey).items.append(worry)
+          num_inspected(m) += 1
+        }
+      }
+      // if (r % 1000 == 0) {
+      //   println(num_inspected.mkString(","))
+      //   monkeys0.map(println)
+      // }
+    }
+    num_inspected.sorted(Ordering.Long.reverse).take(2).reduce((a, b) => a * b)
+  }
+
   val filename = args(0);
   val input_str = Using(Source.fromFile(filename)) { source =>
     source.getLines().toArray
   }.get
   val monkeys = parseMonkeys(input_str)
   // monkeys.map(println)
-  println(p1(monkeys))
+  println(p1(monkeys.map(_.clone)))
+  // monkeys.map(println)
+  println(p2(monkeys))
 }
