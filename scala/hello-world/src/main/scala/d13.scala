@@ -1,6 +1,29 @@
 import scala.collection.mutable.ArrayBuffer
 object d13 extends App {
-  sealed abstract class Packet;
+  sealed abstract class Packet extends Ordered[Packet] {
+    override def compare(that: Packet): Int = {
+      (this, that) match {
+        case (I(l), I(r)) =>
+          if (l < r) -1 else if (l > r) 1 else 0
+        case (l: L, r: I) => l.compare(new L(Array(r)))
+        case (l: I, r: L) => new L(Array(l)).compare(r)
+        case (L(l), L(r)) => {
+          var idx = 0;
+          while (idx < l.size && idx < r.size) {
+            l(idx).compare(r(idx)) match {
+              case 1  => return 1
+              case -1 => return -1
+              case _  =>
+            }
+            idx += 1
+          }
+          if (l.size < r.size) -1
+          else if (l.size > r.size) 1
+          else 0
+        }
+      }
+    }
+  }
 
   case class L(a: Array[Packet]) extends Packet {
     override def toString() = {
@@ -45,31 +68,9 @@ object d13 extends App {
     a.toArray
   }
 
-  def inOrder(pair: (Packet, Packet)): Option[Boolean] = {
-    pair match {
-      case (I(l), I(r)) =>
-        if (l < r) Some(true) else if (l > r) Some(false) else None
-      case (l: L, r: I) => inOrder((l, new L(Array(r))))
-      case (l: I, r: L) => inOrder((new L(Array(l)), r))
-      case (L(l), L(r)) => {
-        var idx = 0;
-        while (idx < l.size && idx < r.size) {
-          inOrder((l(idx), r(idx))) match {
-            case Some(v) => return Some(v)
-            case None    =>
-          }
-          idx += 1
-        }
-        if (l.size < r.size) Some(true)
-        else if (l.size > r.size) Some(false)
-        else None
-      }
-    }
-  }
-
   def p1(pairs: Array[(L, L)]): Int = {
-    pairs.zipWithIndex.map { case (pair, idx) =>
-      if (inOrder(pair).get) idx + 1 else 0
+    pairs.zipWithIndex.map { case ((l, r), idx) =>
+      if (l < r) idx + 1 else 0
     }.sum
   }
 
@@ -79,13 +80,11 @@ object d13 extends App {
       new L(Array(new L(Array(new I(6)))))
     )
     val all_lists = pairs.flatMap { case (l, r) => Array(l, r) } ++ divider_keys
-    val sorted = all_lists.sortWith { case (l, r) =>
-      inOrder((l, r)).get
-    }
+    val sorted = all_lists.sorted
     // sorted.map(println)
     sorted.zipWithIndex
       .map { case (l: L, idx) =>
-        if (divider_keys.exists(a => inOrder((a, l)).isEmpty)) idx + 1 else 1
+        if (divider_keys.exists(_.compare(l) == 0)) idx + 1 else 1
       }
       .fold(1) { case (x, y) => x * y }
   }
