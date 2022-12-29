@@ -62,7 +62,7 @@ object d14 extends App {
 
   def p1(in: Array[Array[(Int, Int)]]): Int = {
     val (mx, my) = find_maxes(in)
-    val miny = in.flatten[(Int, Int)].foldLeft[Int](Int.MaxValue) {
+    val minx = in.flatten[(Int, Int)].foldLeft[Int](Int.MaxValue) {
       case (acc, (xr, yr)) => (Math.min(acc, xr))
     }
     // Don't really want to deal with 0 indexing
@@ -72,8 +72,31 @@ object d14 extends App {
     var num_rocks = 0
     while (!dropRock(a)) {
       num_rocks += 1
-      println(num_rocks)
-      a.slice(miny, a.size).transpose.map(x => println(x.mkString))
+      // println(num_rocks)
+      // a.slice(minx, a.size).transpose.map(x => println(x.mkString))
+    }
+    num_rocks
+  }
+
+  def p2(in: Array[Array[(Int, Int)]]): Int = {
+    val (mx, my) = find_maxes(in)
+    val minx = in.flatten[(Int, Int)].foldLeft[Int](Int.MaxValue) {
+      case (acc, (xr, yr)) => (Math.min(acc, xr))
+    }
+    // Don't really want to deal with 0 indexing
+    // Add 500 since worst case is a pyramid more or less
+    var a = Array.fill[Char](mx + 500 + 1, my + 1 + 2)('.')
+    drawRocks(a, in)
+    for (x <- 0 until a.size) {
+      a(x)(my + 2) = '#'
+    }
+
+    var num_rocks = 0
+    while (a(500)(0) != 'o') {
+      dropRock(a)
+      num_rocks += 1
+      // println(num_rocks)
+      // a.slice(minx, a.size).transpose.map(x => println(x.mkString))
     }
     num_rocks
   }
@@ -81,5 +104,6 @@ object d14 extends App {
   val input = common.readFile(args(0))
   val lines = input.map(parseLine)
   println(p1(lines))
+  println(p2(lines))
   // lines.map(_.map(println))
 }
