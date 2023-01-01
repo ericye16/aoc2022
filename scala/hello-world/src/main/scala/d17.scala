@@ -47,19 +47,31 @@ object d17 extends App {
     rock.rock_shape.map { case (a, b) => (a + offset._1, b + offset._2) }
   }
 
-  def p1(input: String, num_rocks: Int): Int = {
-    var arrHeights = Array.ofDim[Int](7);
-    var arr = Array.ofDim[Char](5000, 7);
-    for (w <- 0 until 7; r <- 0 until 5000) {
+  def p1(input: String, num_rocks: Long): Long = {
+    val theight = 2500
+    def trim_tower(
+        a: Array[Array[Char]],
+        highest_rock: Int
+    ): (Int, Long, Array[Array[Char]]) = {
+      val overlap = 1000
+      var o = Array.fill[Char](theight, 7)('.');
+      for (c <- 0 until (o.size - overlap)) {
+        o(c) = a(c + overlap)
+      }
+      (highest_rock - overlap, overlap, o)
+    }
+
+    var arr = Array.ofDim[Char](theight, 7);
+    for (w <- 0 until 7; r <- 0 until theight) {
       arr(r)(w) = '.'
     };
-    for (w <- 0 until 7) {
-      arrHeights(w) = -1
-    }
+    // Modulo "window"
     var highest_rock = 0
+    var add_offset = 0L
     var dir_idx = 0;
-    for (rock_idx: Int <- 0 until num_rocks) {
-      val which_rock: Int = rock_idx % rocks.length;
+    var rock_idx = 0L
+    while (rock_idx < num_rocks) {
+      val which_rock: Int = (rock_idx % rocks.length).toInt;
       val rock = rocks(which_rock)
       var rock_origin = (highest_rock + 3, 2)
       var dropped = false;
@@ -82,14 +94,7 @@ object d17 extends App {
             case (h, c) => {
               // c >= 0 && c < 7 && arrHeights(c) < h
               val a = c >= 0 && c < 7 && arr(h)(c) == '.'
-              val b = c >= 0 && c < 7 && arrHeights(c) < h
-              if (a != b) {
-                println((h, c))
-                printArray(arr, h + 10)
-                println(arrHeights.mkString(","))
-                throw new RuntimeException("fjdskl")
-              }
-              c >= 0 && c < 7 && arr(h)(c) == '.'
+              a
             }
           }
         ) {
@@ -102,22 +107,14 @@ object d17 extends App {
         if (
           after_down.exists {
             case (h, c) => {
-              // if (arrHeights(c) > h) {
-              //   throw new RuntimeException("fdjskl")
-              // }
-              val a = h < 0 || arrHeights(c) >= h
               val b = h < 0 || arr(h)(c) == '#'
-              if (a != b) {
-                throw new RuntimeException("fdsfdsf 2")
-              }
-              a
+              b
             }
           }
         ) {
           // Stop the rock the prior step
           moveRock(rock, rock_origin).foreach {
             case (h, c) => {
-              arrHeights(c) = Math.max(arrHeights(c), h)
               arr(h)(c) = '#'
             }
           }
@@ -125,7 +122,6 @@ object d17 extends App {
           // Took me a while to find this issue
           highest_rock = Math.max(rock_origin._1 + rock.height, highest_rock)
           // printArray(arr, highest_rock + 2)
-          println(arrHeights.mkString(" "))
           // println(highest_rock)
           // println("--------")
         } else {
@@ -133,12 +129,23 @@ object d17 extends App {
           // println("d " + rock_origin)
         }
       }
+      rock_idx += 1
+      if (highest_rock > 1500) {
+        val ttower = trim_tower(arr, highest_rock)
+        add_offset += ttower._2
+        highest_rock = ttower._1
+        // println(rock_idx, highest_rock)
+        arr = ttower._3
+      }
+      if (rock_idx % (num_rocks / 1000) == 0) {
+        println(rock_idx * 100 / num_rocks + "% progress")
+      }
     }
     // printArray(arr, highest_rock + 2)
-    highest_rock
+    highest_rock + add_offset
   }
   val filename = args(0);
-  val num_rocks = args(1).toInt
+  val num_rocks = args(1).toLong
   val input = Using(Source.fromFile(filename)) { source =>
     source.getLines().toArray
   }.get
