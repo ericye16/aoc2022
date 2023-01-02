@@ -1,6 +1,7 @@
 import scala.util.Using
 import scala.io.Source
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.HashMap
 
 object d17 extends App {
   def printArray(arr: Array[Array[Char]], highest_rock: Int) = {
@@ -48,44 +49,35 @@ object d17 extends App {
   }
 
   def p1(input: String, num_rocks: Long): Long = {
-    val theight = 2500
-    def trim_tower(
-        a: Array[Array[Char]],
-        highest_rock: Int
-    ): (Int, Long, Array[Array[Char]]) = {
-      val overlap = 1000
-      var o = Array.fill[Char](theight, 7)('.');
-      for (c <- 0 until (o.size - overlap)) {
-        o(c) = a(c + overlap)
-      }
-      (highest_rock - overlap, overlap, o)
-    }
+    val theight = 1000000
 
     var arr = Array.ofDim[Char](theight, 7);
     for (w <- 0 until 7; r <- 0 until theight) {
       arr(r)(w) = '.'
     };
-    // Modulo "window"
-    var highest_rock = 0
-    var add_offset = 0L
-    var dir_idx = 0;
-    var rock_idx = 0L
-    while (rock_idx < num_rocks) {
-      val which_rock: Int = (rock_idx % rocks.length).toInt;
+
+    def dropRock(
+        which_rock: Int,
+        dir_idx: Int,
+        arr: Array[Array[Char]],
+        highest_rock: Int
+    ): (Int, Int) = {
       val rock = rocks(which_rock)
       var rock_origin = (highest_rock + 3, 2)
       var dropped = false;
+      var ho = highest_rock
+      var dir0 = dir_idx
       while (!dropped) {
         // Sideways
-        val direction = if (input(dir_idx) == '<') {
+        val direction = if (input(dir0) == '<') {
           -1
-        } else if (input(dir_idx) == '>') {
+        } else if (input(dir0) == '>') {
           1
         } else {
           throw new RuntimeException("Not allowed dir")
         };
-        dir_idx += 1;
-        dir_idx %= input.length()
+        dir0 += 1;
+        dir0 %= input.length()
         val orig_after_sideways = (rock_origin._1, rock_origin._2 + direction)
         val after_sideways =
           moveRock(rock, orig_after_sideways)
@@ -120,7 +112,7 @@ object d17 extends App {
           }
           dropped = true;
           // Took me a while to find this issue
-          highest_rock = Math.max(rock_origin._1 + rock.height, highest_rock)
+          ho = Math.max(rock_origin._1 + rock.height, ho)
           // printArray(arr, highest_rock + 2)
           // println(highest_rock)
           // println("--------")
@@ -129,20 +121,52 @@ object d17 extends App {
           // println("d " + rock_origin)
         }
       }
+      (ho, dir0)
+    }
+    // Modulo "window"
+    var add_offset = 0L
+    var dir_idx = 0;
+    var rock_idx = 0L
+    // Map of (which rock, dir_idx, state) => (new change in height, final height, rock_idx)
+    var hmap = HashMap[(Int, Int, List[List[Char]]), (Int, Int, Long)]()
+    var start_height = 0
+    val state_interval = 100
+    var highest_rock = 0
+    var numrocks0 = num_rocks
+    var add_height = 0L
+    var cycled = false
+    while (rock_idx < numrocks0) {
+      start_height = highest_rock
+      val which_rock: Int = (rock_idx % rocks.length).toInt;
+      val s =
+        arr
+          .slice(highest_rock - state_interval, highest_rock + 1)
+          .map(_.toList)
+          .toList
+      val after_drop = dropRock(which_rock, dir_idx, arr, highest_rock)
+      highest_rock = after_drop._1
+      dir_idx = after_drop._2
+      val dheight = highest_rock - start_height
+      hmap.get((which_rock, dir_idx, s)) match {
+        case None =>
+          hmap((which_rock, dir_idx, s)) = (dheight, highest_rock, rock_idx)
+        case Some((_, fheight, old_rock_idx)) if (!cycled) => {
+          val cycle_height = highest_rock - fheight
+          val cycle_rocks = rock_idx - old_rock_idx
+          val remaining_rocks = numrocks0 - rock_idx
+          val cycles_left = remaining_rocks / cycle_rocks
+          add_height = cycle_height * cycles_left
+          // println(s"$cycle_height, $cycle_rocks")
+          numrocks0 -= (cycles_left * cycle_rocks)
+          // println(s"$numrocks0, $add_height")
+          cycled = true
+        }
+        case _ =>
+      }
       rock_idx += 1
-      if (highest_rock > 1500) {
-        val ttower = trim_tower(arr, highest_rock)
-        add_offset += ttower._2
-        highest_rock = ttower._1
-        // println(rock_idx, highest_rock)
-        arr = ttower._3
-      }
-      if (rock_idx % (num_rocks / 1000) == 0) {
-        println(rock_idx * 100 / num_rocks + "% progress")
-      }
     }
     // printArray(arr, highest_rock + 2)
-    highest_rock + add_offset
+    highest_rock + add_height
   }
   val filename = args(0);
   val num_rocks = args(1).toLong
