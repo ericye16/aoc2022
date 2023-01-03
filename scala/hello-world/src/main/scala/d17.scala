@@ -55,6 +55,7 @@ object d17 extends App {
     for (w <- 0 until 7; r <- 0 until theight) {
       arr(r)(w) = '.'
     };
+    val state_interval = 100
 
     def dropRock(
         which_rock: Int,
@@ -67,6 +68,7 @@ object d17 extends App {
       var dropped = false;
       var ho = highest_rock
       var dir0 = dir_idx
+      var dropped_levels = 0
       while (!dropped) {
         // Sideways
         val direction = if (input(dir0) == '<') {
@@ -118,25 +120,25 @@ object d17 extends App {
           // println("--------")
         } else {
           rock_origin = orig_after_down;
+          dropped_levels += 1
+          if (dropped_levels > state_interval) {
+            throw new RuntimeException("not holding enough state!")
+          }
           // println("d " + rock_origin)
         }
       }
       (ho, dir0)
     }
     // Modulo "window"
-    var add_offset = 0L
     var dir_idx = 0;
     var rock_idx = 0L
-    // Map of (which rock, dir_idx, state) => (new change in height, final height, rock_idx)
-    var hmap = HashMap[(Int, Int, List[List[Char]]), (Int, Int, Long)]()
-    var start_height = 0
-    val state_interval = 100
+    // Map of (which rock, dir_idx, state) => (final height, rock_idx)
+    var hmap = HashMap[(Int, Int, List[List[Char]]), (Int, Long)]()
     var highest_rock = 0
     var numrocks0 = num_rocks
     var add_height = 0L
     var cycled = false
     while (rock_idx < numrocks0) {
-      start_height = highest_rock
       val which_rock: Int = (rock_idx % rocks.length).toInt;
       val s =
         arr
@@ -146,22 +148,25 @@ object d17 extends App {
       val after_drop = dropRock(which_rock, dir_idx, arr, highest_rock)
       highest_rock = after_drop._1
       dir_idx = after_drop._2
-      val dheight = highest_rock - start_height
-      hmap.get((which_rock, dir_idx, s)) match {
-        case None =>
-          hmap((which_rock, dir_idx, s)) = (dheight, highest_rock, rock_idx)
-        case Some((_, fheight, old_rock_idx)) if (!cycled) => {
-          val cycle_height = highest_rock - fheight
-          val cycle_rocks = rock_idx - old_rock_idx
-          val remaining_rocks = numrocks0 - rock_idx
-          val cycles_left = remaining_rocks / cycle_rocks
-          add_height = cycle_height * cycles_left
-          // println(s"$cycle_height, $cycle_rocks")
-          numrocks0 -= (cycles_left * cycle_rocks)
-          // println(s"$numrocks0, $add_height")
-          cycled = true
+      if (!cycled) {
+        hmap.get((which_rock, dir_idx, s)) match {
+          case None =>
+            hmap((which_rock, dir_idx, s)) = (highest_rock, rock_idx)
+          case Some((fheight, old_rock_idx)) => {
+            val cycle_height = highest_rock - fheight
+            val cycle_rocks = rock_idx - old_rock_idx
+            val remaining_rocks = numrocks0 - rock_idx
+            val cycles_left = remaining_rocks / cycle_rocks
+            add_height = cycle_height * cycles_left
+            println(s"Cycle detected: $cycle_height height, $cycle_rocks rocks")
+            val jump_ahead_rocks = (cycles_left * cycle_rocks)
+            numrocks0 -= jump_ahead_rocks
+            println(
+              s"Jumping ahead $jump_ahead_rocks rocks by adding $add_height"
+            )
+            cycled = true
+          }
         }
-        case _ =>
       }
       rock_idx += 1
     }
