@@ -13,10 +13,10 @@ object d16 extends App {
     h
   }
   var valve_map = parse_input(in)
-  println(valve_map)
+  // println(valve_map)
 
-  // map of (turned, curr) -> (score, last_minute)
-  var memo = HashMap[(Int, Set[String], Int, String), Int]()
+  // map of (turned, curr) -> (score, last_minute, acc0)
+  var memo = HashMap[(Set[String], String), (Int, Int, Int)]()
 
   def so(
       inp: HashMap[String, Valve],
@@ -53,11 +53,19 @@ object d16 extends App {
         )).max
       }
     }
-    memo.getOrElseUpdate((minutes, turned, acc, curr), v())
-    // v()
+    memo.get((turned, curr)) match {
+      case Some((sc, l_minute, acc0)) if (l_minute >= minutes && acc0 >= acc) =>
+        sc
+      case _ => {
+        val vv = v()
+        memo((turned, curr)) = (vv, minutes, acc)
+        vv
+      }
+    }
   }
 
-  var memo2 = HashMap[(Int, Set[String], Int, Set[String]), Int]()
+  // Map of (turned, curr) -> (score, last_minute, acc0)
+  var memo2 = HashMap[(Set[String], Set[String]), (Int, Int, Int)]()
 
   def so2(
       inp: HashMap[String, Valve],
@@ -140,7 +148,18 @@ object d16 extends App {
         l.max
       }
     }
-    memo2.getOrElseUpdate((minutes, turned, acc, curr), v())
+    memo2.get((turned, curr)) match {
+      case Some((sc, l_minute, acc0)) if (l_minute >= minutes && acc0 >= acc) =>
+        sc
+      case _ => {
+        val vv = v()
+        memo2((turned, curr)) = (vv, minutes, acc)
+        if (memo2.size % 1000 == 0) {
+          println("Memo size ", memo2.size)
+        }
+        vv
+      }
+    }
     // v()
   }
 
@@ -150,7 +169,9 @@ object d16 extends App {
         r > 0
       }.size
   def p1(valve_map: HashMap[String, Valve]): Int = {
-    so(valve_map, num_valves(valve_map), 30, Set(), 0, "AA")
+    val v = so(valve_map, num_valves(valve_map), 30, Set(), 0, "AA")
+    // println(memo)
+    v
   }
   def p2(valve_map: HashMap[String, Valve]): Int = {
     so2(valve_map, num_valves(valve_map), 26, Set(), 0, Set("AA"))
