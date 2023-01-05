@@ -1,4 +1,7 @@
 import scala.collection.mutable.HashMap
+import scala.collection.mutable.HashSet
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.Queue
 object d16 extends App {
   case class Valve(rate: Int, tunnels: List[String])
   var in = common.readFile(args(0))
@@ -13,24 +16,61 @@ object d16 extends App {
     h
   }
   var valve_map = parse_input(in)
-  // println(valve_map)
+  case class Valve2(rate: Int, tunnels: HashMap[String, Int])
+  def bfs(
+      start: String,
+      m: HashMap[String, List[String]]
+  ): List[(String, Int)] = {
+    var visited = HashSet[String](start)
+    var o = ArrayBuffer[(String, Int)]()
+    var q = Queue[(String, Int)]()
+    m(start).foreach(s => q.append((s, 1)))
+    while (!q.isEmpty) {
+      val (s, d) = q.dequeue()
+      if (!visited.contains(s)) {
+        m(s).foreach(s0 => q.append((s0, d + 1)))
+        visited += s
+        o.append((s, d))
+      }
+    }
+    o.toList
+  }
+  def find_paths(inp: HashMap[String, Valve]): HashMap[String, Valve2] = {
+    val relavent_valves: Set[String] =
+      inp.filter { case (_, Valve(r, _)) => r > 0 }.map(_._1).toSet ++ Set("AA")
+    val tmap = inp.map { case (s0, Valve(_, t0)) => (s0, t0) }
+    inp.filter { case (s, _) => relavent_valves.contains(s) }.map {
+      case (s, Valve(r, _)) => {
+        var tunnel_map: HashMap[String, Int] = HashMap()
+        bfs(s, tmap).foreach { case (a, b) =>
+          if (relavent_valves.contains(a)) tunnel_map(a) = b
+        }
+        (s, Valve2(r, tunnel_map))
+      }
+    }
+  }
+  val paths = find_paths(valve_map)
+  // println(paths)
 
   // map of (turned, curr) -> (score, last_minute, acc0)
-  var memo = HashMap[(Set[String], String), (Int, Int, Int)]()
+  case class Acc(total_p: Int, v: String, m: Int)
+  case class ValveSeq(tot: Int, valves: List[Acc])
 
+  def get_total_p(a: List[Acc]): Int = { a.map(_.total_p).sum }
   def so(
-      inp: HashMap[String, Valve],
+      inp: HashMap[String, Valve2],
       num_valves: Int,
       minutes: Int,
       turned: Set[String],
-      acc: Int,
-      curr: String
-  ): Int = {
-    val v = () => {
+      acc: ValveSeq,
+      curr: String,
+      memo: HashMap[(Set[String], String), (ValveSeq, Int, ValveSeq)]
+  ): ValveSeq = {
+    val v: () => ValveSeq = () => {
       // obervation: for a given (turned, curr), we want to have turned the
       // valves as early as possible
       // println(s"$minutes $turned $acc $curr")
-      if (minutes == 0 || turned.size == num_valves) acc
+      if (minutes <= 0 || turned.size == num_valves) acc
       else {
         val neighbors = inp(curr).tunnels
         val rate = inp(curr).rate
@@ -43,18 +83,24 @@ object d16 extends App {
                 num_valves,
                 minutes - 1,
                 turned + curr,
-                acc + pressure,
-                curr
+                ValveSeq(
+                  acc.tot + pressure,
+                  acc.valves :+ Acc(pressure, curr, minutes)
+                ),
+                curr,
+                memo
               )
             )
           } else Nil
-        } ++ neighbors.map(
-          so(inp, num_valves, minutes - 1, turned, acc, _)
-        )).max
+        } ++ neighbors.filter { case (ns, _) => !turned.contains(ns) }.map {
+          case (ns, nd) =>
+            so(inp, num_valves, minutes - nd, turned, acc, ns, memo)
+        }).maxBy(_.tot)
       }
     }
     memo.get((turned, curr)) match {
-      case Some((sc, l_minute, acc0)) if (l_minute >= minutes && acc0 >= acc) =>
+      case Some((sc, l_minute, acc0))
+          if (l_minute >= minutes && acc0.tot >= acc.tot) =>
         sc
       case _ => {
         val vv = v()
@@ -64,11 +110,13 @@ object d16 extends App {
     }
   }
 
+  /*
   // Map of (turned, curr) -> (score, last_minute, acc0)
   var memo2 = HashMap[(Set[String], Set[String]), (Int, Int, Int)]()
 
   def so2(
       inp: HashMap[String, Valve],
+      path: HashMap[String, Valve2],
       num_valves: Int,
       minutes: Int,
       turned: Set[String],
@@ -77,7 +125,7 @@ object d16 extends App {
   ): Int = {
     val v = () => {
       // println(s"$minutes $turned $acc $curr")
-      if (minutes == 0 || turned.size == num_valves) acc
+      if (minutes <= 0 || turned.size == num_valves) acc
       else {
         var curr0 = curr.toList
         if (curr0.size == 1) {
@@ -104,6 +152,7 @@ object d16 extends App {
             List(
               so2(
                 inp,
+                path,
                 num_valves,
                 minutes - 1,
                 turned + curr1 + curr2,
@@ -116,34 +165,36 @@ object d16 extends App {
           // Turn 1
           if (!turned.contains(curr1) && rate1 != 0) {
             neighbors2
-              .map(x =>
+              .map { case (ns, nd) =>
                 so2(
                   inp,
+                  path,
                   num_valves,
-                  minutes - 1,
+                  minutes - nd,
                   turned + curr1,
                   acc + pressure1,
-                  Set(curr1, x)
+                  Set(curr1, ns)
                 )
-              )
+              }
           } else Nil
         } ++ {
           // Turn 2
           if (!turned.contains(curr2) && rate2 != 0) {
             neighbors1
-              .map(x =>
+              .map { case (ns, nd) =>
                 so2(
                   inp,
+                  path,
                   num_valves,
-                  minutes - 1,
+                  minutes - nd,
                   turned + curr2,
                   acc + pressure2,
-                  Set(curr2, x)
+                  Set(curr2, ns)
                 )
-              )
+              }
           } else Nil
         } ++ all_neighbors.map(
-          so2(inp, num_valves, minutes - 1, turned, acc, _)
+          so2(inp, path, num_valves, minutes - 1, turned, acc, _)
         )
         l.max
       }
@@ -162,6 +213,7 @@ object d16 extends App {
     }
     // v()
   }
+   */
 
   val num_valves: (HashMap[String, Valve] => Int) =
     (v: HashMap[String, Valve]) =>
@@ -169,12 +221,96 @@ object d16 extends App {
         r > 0
       }.size
   def p1(valve_map: HashMap[String, Valve]): Int = {
-    val v = so(valve_map, num_valves(valve_map), 30, Set(), 0, "AA")
-    // println(memo)
-    v
+    var memo = HashMap[(Set[String], String), (ValveSeq, Int, ValveSeq)]()
+    val v =
+      so(
+        paths,
+        num_valves(valve_map),
+        30,
+        Set(),
+        ValveSeq(0, List()),
+        "AA",
+        memo
+      )
+    // println(memo.filter { case ((ts, _), _) =>
+    //   ts == Set("MH", "QW", "ZU", "NT", "KF", "FF", "XY", "NQ")
+    // })
+    println(memo.size)
+    println(v)
+    v.tot
   }
+
+  def merge_valve_seqs(a: ValveSeq, b: ValveSeq): Int = {
+    var turned = HashSet[String]()
+    var acc = 0
+    def add_to(x: Acc) = {
+      if (!turned.contains(x.v)) {
+        acc += x.total_p
+      }
+      turned += x.v
+    }
+    var a_idx = 0
+    var b_idx = 0
+    while (a_idx < a.valves.size || b_idx < b.valves.size) {
+      if (a_idx < a.valves.size && b_idx < b.valves.size) {
+        if (a.valves(a_idx).m > b.valves(b_idx).m) {
+          // A first
+          add_to(a.valves(a_idx))
+          a_idx += 1
+        } else {
+          add_to(b.valves(b_idx))
+          b_idx += 1
+        }
+      } else if (a_idx < a.valves.size) {
+        add_to(a.valves(a_idx))
+        a_idx += 1
+      } else if (b_idx < b.valves.size) {
+        add_to(b.valves(b_idx))
+        b_idx += 1
+      }
+    }
+    acc
+  }
+
   def p2(valve_map: HashMap[String, Valve]): Int = {
-    so2(valve_map, num_valves(valve_map), 26, Set(), 0, Set("AA"))
+    var memo = HashMap[(Set[String], String), (ValveSeq, Int, ValveSeq)]()
+    val v =
+      so(
+        paths,
+        num_valves(valve_map),
+        26,
+        Set(),
+        ValveSeq(0, List()),
+        "AA",
+        memo
+      )
+    // println(memo.filter { case ((t, _), _) => t == Set("JJ", "BB", "CC") })
+    // println(memo.filter { case ((t, _), _) => t == Set("DD", "HH", "EE") })
+    println(memo.size)
+    var m = 0
+    var md: Option[(List[Acc], List[Acc])] = None
+    var idx = 0L
+    val expected = memo.size.toLong * memo.size.toLong
+    for (
+      seq1 <- memo;
+      seq2 <- memo
+    ) {
+      val s1 = seq1._2._3
+      val s2 = seq2._2._3
+      val m0 = merge_valve_seqs(s1, s2)
+      if (m0 > m) {
+        m = m0
+        md = Some((s1.valves, s2.valves))
+      }
+      idx += 1
+      if (idx % 1000000 == 0) {
+        val pct = idx * 100f / expected
+        println(s"At $pct%")
+      }
+    }
+    println(md)
+    // so2(valve_map, paths, num_valves(valve_map), 26, Set(), 0, Set("AA"))
+    m
   }
   // println(p1(valve_map))
   println(p2(valve_map))
