@@ -56,8 +56,16 @@ object d16 extends App {
   case class Acc(total_p: Int, v: String, m: Int)
   case class ValveSeq(tot: Int, valves: List[Acc])
 
+  object Question extends Enumeration {
+    type Question = Value
+
+    val One, Two = Value
+  }
+  import Question._
+
   def get_total_p(a: List[Acc]): Int = { a.map(_.total_p).sum }
   def so(
+      q: Question,
       inp: HashMap[String, Valve2],
       num_valves: Int,
       minutes: Int,
@@ -70,8 +78,41 @@ object d16 extends App {
       // obervation: for a given (turned, curr), we want to have turned the
       // valves as early as possible
       // println(s"$minutes $turned $acc $curr")
-      if (minutes <= 0 || turned.size == num_valves) acc
-      else {
+      if (minutes <= 0 || turned.size == num_valves) {
+        if (q == One)
+          acc
+        else {
+          // val useful_paths: (String) => Boolean = s => {
+          //   !turned.contains(s) || s == "AA"
+          // }
+          // val paths_2: HashMap[String, Valve2] =
+          //   inp
+          //     .filter { case (s, _) => useful_paths(s) }
+          //     .map {
+          //       case (s, vs) => {
+          //         var tunnel_map: HashMap[String, Int] = HashMap()
+          //         vs.tunnels.filter { case (s, _) => useful_paths(s) }.foreach {
+          //           case (s, d) => tunnel_map(s) = d
+          //         }
+          //         (s, Valve2(vs.rate, tunnel_map))
+          //       }
+          //     }
+          // val num_valves2 = paths_2.size - 1 // ignore AA
+          var memo2 =
+            HashMap[(Set[String], String), (ValveSeq, Int, ValveSeq)]()
+          val acc2 = so(
+            One,
+            inp,
+            num_valves,
+            26,
+            turned,
+            ValveSeq(0, List()),
+            "AA",
+            memo2
+          )
+          ValveSeq(acc.tot + acc2.tot, acc.valves ++ acc2.valves)
+        }
+      } else {
         val neighbors = inp(curr).tunnels
         val rate = inp(curr).rate
         ({
@@ -79,6 +120,7 @@ object d16 extends App {
             val pressure = rate * (minutes - 1)
             List(
               so(
+                q,
                 inp,
                 num_valves,
                 minutes - 1,
@@ -94,126 +136,27 @@ object d16 extends App {
           } else Nil
         } ++ neighbors.filter { case (ns, _) => !turned.contains(ns) }.map {
           case (ns, nd) =>
-            so(inp, num_valves, minutes - nd, turned, acc, ns, memo)
+            so(q, inp, num_valves, minutes - nd, turned, acc, ns, memo)
         }).maxBy(_.tot)
       }
     }
     memo.get((turned, curr)) match {
       case Some((sc, l_minute, acc0))
-          if (l_minute >= minutes && acc0.tot >= acc.tot) =>
+          if (l_minute >= minutes && acc0.tot >= acc.tot) => {
         sc
+      }
       case _ => {
         val vv = v()
+        // if (!vv.valves.map(_.v).startsWith(acc.valves.map(_.v))) {
+        //   println(vv)
+        //   println(acc)
+        //   throw new RuntimeException("Weird!")
+        // }
         memo((turned, curr)) = (vv, minutes, acc)
         vv
       }
     }
   }
-
-  /*
-  // Map of (turned, curr) -> (score, last_minute, acc0)
-  var memo2 = HashMap[(Set[String], Set[String]), (Int, Int, Int)]()
-
-  def so2(
-      inp: HashMap[String, Valve],
-      path: HashMap[String, Valve2],
-      num_valves: Int,
-      minutes: Int,
-      turned: Set[String],
-      acc: Int,
-      curr: Set[String]
-  ): Int = {
-    val v = () => {
-      // println(s"$minutes $turned $acc $curr")
-      if (minutes <= 0 || turned.size == num_valves) acc
-      else {
-        var curr0 = curr.toList
-        if (curr0.size == 1) {
-          curr0 = curr0 ++ curr0
-        }
-        val (curr1, curr2) = (curr0(0), curr0(1))
-        val (rate1, rate2) = (inp(curr1).rate, inp(curr2).rate)
-        val pressure1 = rate1 * (minutes - 1)
-        val pressure2 = rate2 * (minutes - 1)
-        val neighbors1 = inp(curr1).tunnels
-        val neighbors2 = inp(curr2).tunnels
-        // Both go to neighbor
-        val all_neighbors = {
-          for (n1 <- neighbors1; n2 <- neighbors2)
-            yield Set(n1, n2)
-        }
-        val l: List[Int] = {
-          // Turn both
-          if (
-            !turned.contains(curr2) && rate2 != 0 && !turned.contains(
-              curr1
-            ) && rate1 != 0 && curr1 != curr2
-          ) {
-            List(
-              so2(
-                inp,
-                path,
-                num_valves,
-                minutes - 1,
-                turned + curr1 + curr2,
-                acc + pressure2 + pressure1,
-                curr
-              )
-            )
-          } else Nil
-        } ++ {
-          // Turn 1
-          if (!turned.contains(curr1) && rate1 != 0) {
-            neighbors2
-              .map { case (ns, nd) =>
-                so2(
-                  inp,
-                  path,
-                  num_valves,
-                  minutes - nd,
-                  turned + curr1,
-                  acc + pressure1,
-                  Set(curr1, ns)
-                )
-              }
-          } else Nil
-        } ++ {
-          // Turn 2
-          if (!turned.contains(curr2) && rate2 != 0) {
-            neighbors1
-              .map { case (ns, nd) =>
-                so2(
-                  inp,
-                  path,
-                  num_valves,
-                  minutes - nd,
-                  turned + curr2,
-                  acc + pressure2,
-                  Set(curr2, ns)
-                )
-              }
-          } else Nil
-        } ++ all_neighbors.map(
-          so2(inp, path, num_valves, minutes - 1, turned, acc, _)
-        )
-        l.max
-      }
-    }
-    memo2.get((turned, curr)) match {
-      case Some((sc, l_minute, acc0)) if (l_minute >= minutes && acc0 >= acc) =>
-        sc
-      case _ => {
-        val vv = v()
-        memo2((turned, curr)) = (vv, minutes, acc)
-        if (memo2.size % 1000 == 0) {
-          println("Memo size ", memo2.size)
-        }
-        vv
-      }
-    }
-    // v()
-  }
-   */
 
   val num_valves: (HashMap[String, Valve] => Int) =
     (v: HashMap[String, Valve]) =>
@@ -224,6 +167,7 @@ object d16 extends App {
     var memo = HashMap[(Set[String], String), (ValveSeq, Int, ValveSeq)]()
     val v =
       so(
+        One,
         paths,
         num_valves(valve_map),
         30,
@@ -232,11 +176,9 @@ object d16 extends App {
         "AA",
         memo
       )
-    // println(memo.filter { case ((ts, _), _) =>
-    //   ts == Set("MH", "QW", "ZU", "NT", "KF", "FF", "XY", "NQ")
-    // })
-    println(memo.size)
-    println(v)
+    // memo.foreach(println)
+    // println(memo.size)
+    // println(v)
     v.tot
   }
 
@@ -276,6 +218,7 @@ object d16 extends App {
     var memo = HashMap[(Set[String], String), (ValveSeq, Int, ValveSeq)]()
     val v =
       so(
+        Two,
         paths,
         num_valves(valve_map),
         26,
@@ -284,34 +227,8 @@ object d16 extends App {
         "AA",
         memo
       )
-    // println(memo.filter { case ((t, _), _) => t == Set("JJ", "BB", "CC") })
-    // println(memo.filter { case ((t, _), _) => t == Set("DD", "HH", "EE") })
-    println(memo.size)
-    var m = 0
-    var md: Option[(List[Acc], List[Acc])] = None
-    var idx = 0L
-    val expected = memo.size.toLong * memo.size.toLong
-    for (
-      seq1 <- memo;
-      seq2 <- memo
-    ) {
-      val s1 = seq1._2._3
-      val s2 = seq2._2._3
-      val m0 = merge_valve_seqs(s1, s2)
-      if (m0 > m) {
-        m = m0
-        md = Some((s1.valves, s2.valves))
-      }
-      idx += 1
-      if (idx % 1000000 == 0) {
-        val pct = idx * 100f / expected
-        println(s"At $pct%")
-      }
-    }
-    println(md)
-    // so2(valve_map, paths, num_valves(valve_map), 26, Set(), 0, Set("AA"))
-    m
+    v.tot
   }
-  // println(p1(valve_map))
+  println(p1(valve_map))
   println(p2(valve_map))
 }
