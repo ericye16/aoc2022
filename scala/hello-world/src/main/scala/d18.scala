@@ -1,4 +1,5 @@
 import scala.collection.mutable.HashMap
+import scala.collection.mutable.Stack
 
 object d18 extends App {
   case class Cube(x: Int, y: Int, z: Int)
@@ -59,7 +60,7 @@ object d18 extends App {
     )
   }
 
-  def p1(inp: Array[Cube]): Int = {
+  def count_faces(inp: Seq[Cube]): HashMap[Face, Int] = {
     var face_count = HashMap[Face, Int]();
     for (
       cube <- inp;
@@ -67,11 +68,49 @@ object d18 extends App {
     ) {
       face_count(face) = face_count.getOrElse(face, 0) + 1
     }
-    face_count.filter { case (_, c) => c == 1 }.size
+    face_count
   }
 
-  def dfs(ffill:  Array[Array[Array[Int]]], cube: Cube):List[Cube]  = {
-    
+  def p1(inp: Seq[Cube]): Int = {
+    count_faces(inp).filter { case (_, c) => c == 1 }.size
+  }
+
+  def dfs(
+      ffill: Array[Array[Array[Int]]],
+      cube: Cube
+  ): (List[Cube], Boolean) = {
+    var to_visit = Stack[Cube](cube);
+    var visited = Set[Cube]();
+    var is_open = false
+    def out_of_bounds(cube: Cube): Boolean = {
+      (cube.x < 0 || cube.x >= ffill.size) ||
+      (cube.y < 0 || cube.y >= ffill(0).size) ||
+      (cube.z < 0 || cube.z >= ffill(0)(0).size)
+    }
+    while (to_visit.size > 0) {
+      val now = to_visit.pop()
+      if (!visited.contains(now)) {
+        val neighbors = List(
+          Cube(now.x + 1, now.y, now.z),
+          Cube(now.x - 1, now.y, now.z),
+          Cube(now.x, now.y + 1, now.z),
+          Cube(now.x, now.y - 1, now.z),
+          Cube(now.x, now.y, now.z + 1),
+          Cube(now.x, now.y, now.z - 1)
+        )
+        for (neighbor <- neighbors) {
+          if (out_of_bounds(neighbor)) {
+            is_open = true
+          } else {
+            if (ffill(neighbor.x)(neighbor.y)(neighbor.z) == 0) {
+              to_visit.addOne(neighbor)
+            }
+          }
+        }
+        visited += now
+      }
+    }
+    (visited.toList, is_open)
   }
 
   def p2(inp: Array[Cube]): Int = {
@@ -83,13 +122,23 @@ object d18 extends App {
     for (cube <- inp) {
       ffill(cube.x)(cube.y)(cube.z) = 1
     }
+    val all_faces = p1(inp)
+    var num_minus_faces = 0
     for (x <- 0 until max_x; y <- 0 until max_y; z <- 0 until max_z) {
-      if (ffill(x)(y)(z) ==  0)  {
-        val cubes = dfs(ffill, Cube(x, y, z))
+      if (ffill(x)(y)(z) == 0) {
+        val (cubes, is_open) = dfs(ffill, Cube(x, y, z))
+        // println(s"Found interior cubes at $x,$y,$z, $cubes, $is_open")
+        if (!is_open) {
+          num_minus_faces += p1(cubes)
+        }
+        for (cube <- cubes) {
+          ffill(cube.x)(cube.y)(cube.z) = if (is_open) 3 else 2
+        }
       }
     }
-    ???
+    all_faces - num_minus_faces
   }
   val inp = common.readFile(args(0)).map(parseLine)
   println(p1(inp))
+  println(p2(inp))
 }
