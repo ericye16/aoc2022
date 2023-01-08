@@ -129,11 +129,11 @@ object d19 extends App {
     memo.getOrElseUpdate((minutes_left, s), v())
   }
 
-  def findBestP1(b: Blueprint): Int = {
+  def findBest(b: Blueprint, minutes: Int): Int = {
     var memo = HashMap[(Int, State), Int]()
     val v = so(
       b,
-      24,
+      minutes,
       State(
         ores = 0,
         clays = 0,
@@ -152,10 +152,14 @@ object d19 extends App {
   }
 
   def p1(inp: Seq[Blueprint]): Int = {
-    inp.map(b => b.id * findBestP1(b)).sum
+    inp.map(b => b.id * findBest(b, 24)).sum
+  }
+
+  def p2(inp: Seq[Blueprint]): Int = {
+    inp.filter(_.id <= 3).map(b => findBest(b, 32)).fold(1)(_ * _)
   }
 
   val inp = common.readFile(args(0)).map(parseLine)
-  inp.map(println)
-  println(p1(inp))
+  // println(p1(inp))
+  println(p2(inp))
 }
