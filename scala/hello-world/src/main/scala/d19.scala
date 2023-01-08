@@ -62,9 +62,6 @@ object d19 extends App {
       else {
         val next_s = step_one_minute(s)
         var next_states = ArrayBuffer[Int]()
-        next_states.append {
-          so(b, minutes_left - 1, next_s, memo)
-        }
         // Ore robot
         if (s.ores >= b.ore_ore) {
           next_states.append(
@@ -109,6 +106,7 @@ object d19 extends App {
           )
         }
         // Geode robot
+        // Always do this if possible.
         if (s.ores >= b.geode_ore && s.obsidians >= b.geode_obsidian) {
           next_states.append(
             so(
@@ -122,6 +120,10 @@ object d19 extends App {
               memo
             )
           )
+        } else {
+          next_states.append {
+            so(b, minutes_left - 1, next_s, memo)
+          }
         }
         next_states.max
       }
@@ -160,6 +162,6 @@ object d19 extends App {
   }
 
   val inp = common.readFile(args(0)).map(parseLine)
-  // println(p1(inp))
-  println(p2(inp))
+  println(p1(inp))
+  // println(p2(inp))
 }
