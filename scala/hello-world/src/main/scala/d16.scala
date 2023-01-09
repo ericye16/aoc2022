@@ -2,6 +2,7 @@ import scala.collection.mutable.HashMap
 import scala.collection.mutable.HashSet
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.Queue
+import scala.collection.BitSet
 object d16 extends App {
   case class Valve(rate: Int, tunnels: List[String])
   var in = common.readFile(args(0))
@@ -218,22 +219,83 @@ object d16 extends App {
     v.tot
   }
 
-  def p2(valve_map: HashMap[String, Valve]): Int = {
-    var memo = new Memo()
-    val v =
-      so(
-        Two,
-        paths,
-        num_valves(valve_map),
-        26,
-        Set(),
-        ValveSeq(0, List()),
-        "AA",
-        memo
-      )
-    v.tot
+  def so2(
+      minutes: Int,
+      inp: HashMap[String, Valve2],
+      num_valves: Int,
+      turned: Set[String],
+      acc: ValveSeq,
+      curr: String
+  ): List[ValveSeq] = {
+    // println(s"$minutes turned: $turned acc: $acc, $curr")
+    if (minutes <= 0 || turned.size == num_valves) List(acc)
+    else {
+      // stop here case
+      so2(0, inp, num_valves, turned, acc, curr) ++
+        (if (!turned.contains(curr) && inp(curr).rate > 0) {
+           // Turn here case
+           val pressure = inp(curr).rate * (minutes - 1)
+           so2(
+             minutes - 1,
+             inp,
+             num_valves,
+             turned + curr,
+             ValveSeq(
+               acc.tot + pressure,
+               acc.valves :+ Acc(pressure, curr, minutes)
+             ),
+             curr
+           )
+         } else
+           (inp(curr).tunnels
+             .filter {
+               case (v, _) => (!turned.contains(v) && inp(v).rate > 0)
+             }
+             .map { case (v, d) =>
+               so2(minutes - d, inp, num_valves, turned, acc, v)
+             })
+             .flatten)
+    }
   }
-  // upper_bound(30, paths, Set(), ValveSeq(0, List()), "AA")
-  println(p1(valve_map))
+
+  def no_conflict(a: ValveSeq, b: ValveSeq): Boolean = {
+    val s = a.valves.map(_.v).toSet
+    b.valves.map(_.v).forall(!s.contains(_))
+  }
+
+  def p2(valve_map: HashMap[String, Valve]): Int = {
+    val all_paths =
+      so2(26, paths, num_valves(valve_map), Set(), ValveSeq(0, List()), "AA")
+    val all_turned: List[String] =
+      all_paths.flatMap(_.valves.map(_.v)).toSet.toList
+    var to_int = HashMap[String, Int]()
+    for ((s, i) <- all_turned.zipWithIndex) {
+      to_int(s) = i
+    }
+    val turned: List[BitSet] =
+      all_paths.map(x =>
+        x.valves
+          .map(_.v)
+          .map(v => BitSet(to_int(v)))
+          .foldLeft(BitSet()) { case (a, b) => a ++ b }
+      )
+    println(turned.size)
+    var max = 0
+    for (
+      i <- 0 until all_paths.size;
+      j <- (i + 1) until all_paths.size
+    ) {
+      if (i % 500 == 0 && j == i + 1)
+        println(i, j)
+      if ((turned(i).intersect(turned(j))).isEmpty) {
+        val a = all_paths(i)
+        val b = all_paths(j)
+        val m = a.tot + b.tot
+        if (m > max) max = m
+      }
+    }
+    max
+  }
+  // println(p1(valve_map))
   println(p2(valve_map))
 }
