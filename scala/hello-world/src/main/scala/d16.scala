@@ -266,36 +266,25 @@ object d16 extends App {
   def p2(valve_map: HashMap[String, Valve]): Int = {
     val all_paths =
       so2(26, paths, num_valves(valve_map), Set(), ValveSeq(0, List()), "AA")
-    val all_turned: List[String] =
-      all_paths.flatMap(_.valves.map(_.v)).toSet.toList
-    var to_int = HashMap[String, Int]()
-    for ((s, i) <- all_turned.zipWithIndex) {
-      to_int(s) = i
-    }
-    val turned: List[BitSet] =
-      all_paths.map(x =>
-        x.valves
-          .map(_.v)
-          .map(v => BitSet(to_int(v)))
-          .foldLeft(BitSet()) { case (a, b) => a ++ b }
-      )
-    println(turned.size)
+        .sortBy(-_.tot)
+        .toArray
+    val turned: Array[Set[String]] =
+      all_paths.map(x => x.valves.map(_.v).toSet)
     var max = 0
-    for (
-      i <- 0 until all_paths.size;
-      j <- (i + 1) until all_paths.size
-    ) {
-      if (i % 500 == 0 && j == i + 1)
-        println(i, j)
-      if ((turned(i).intersect(turned(j))).isEmpty) {
-        val a = all_paths(i)
-        val b = all_paths(j)
-        val m = a.tot + b.tot
-        if (m > max) max = m
+    for (i <- 0 until all_paths.size) {
+      var j = i + 1
+      val a = all_paths(i)
+      while (j < all_paths.size && all_paths(j).tot + a.tot > max) {
+        if ((turned(i).intersect(turned(j))).isEmpty) {
+          val b = all_paths(j)
+          val m = a.tot + b.tot
+          if (m > max) max = m
+        }
+        j += 1
       }
     }
     max
   }
-  // println(p1(valve_map))
+  println(p1(valve_map))
   println(p2(valve_map))
 }
