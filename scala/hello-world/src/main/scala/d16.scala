@@ -55,37 +55,24 @@ object d16 extends App {
   case class Acc(total_p: Int, v: String, m: Int)
   case class ValveSeq(tot: Int, valves: List[Acc])
 
-  object Question extends Enumeration {
-    type Question = Value
-
-    val One, Two = Value
-  }
-  import Question._
-
   class Memo {
     var best: Int = 0
     var m = HashMap[(Set[String], String), (ValveSeq, Int, ValveSeq)]()
   }
 
   def upper_bound(
-      q: Question,
       minutes: Int,
       inp: HashMap[String, Valve2],
       turned: Set[String],
       acc: ValveSeq,
       curr: String
   ): Int = {
-    val v = if (q == One) {
+    val v = {
       inp(curr).tunnels
         .filter { case (n, _) => !turned.contains(n) }
         .map { case (n, d) =>
           inp(n).rate * Math.max(minutes - d, 0)
         }
-        .sum
-    } else {
-      inp
-        .filter { case (n, _) => !turned.contains(n) }
-        .map { case (_, v) => v.rate * 26 }
         .sum
     }
 
@@ -96,7 +83,6 @@ object d16 extends App {
   }
 
   def so(
-      q: Question,
       inp: HashMap[String, Valve2],
       num_valves: Int,
       minutes: Int,
@@ -110,24 +96,10 @@ object d16 extends App {
       // valves as early as possible
       // println(s"$minutes $turned $acc $curr")
       if (minutes <= 0 || turned.size == num_valves) {
-        if (q == One)
-          acc
-        else {
-          var memo2 = new Memo
-          val acc2 = so(
-            One,
-            inp,
-            num_valves,
-            26,
-            turned,
-            ValveSeq(0, List()),
-            "AA",
-            memo2
-          )
-          ValveSeq(acc.tot + acc2.tot, acc.valves ++ acc2.valves)
-        }
+        acc
+
       } else {
-        val upb = upper_bound(q, minutes, inp, turned, acc, curr)
+        val upb = upper_bound(minutes, inp, turned, acc, curr)
         if (upb < memo.best) {
           return ValveSeq(0, List())
         }
@@ -140,15 +112,10 @@ object d16 extends App {
         val neighbors = inp(curr).tunnels
         val rate = inp(curr).rate
         var valveseqs = ArrayBuffer[ValveSeq]()
-        if (q == Two) {
-          // Skip to end
-          valveseqs.append(so(q, inp, num_valves, 0, turned, acc, curr, memo))
-        }
         if (!turned.contains(curr) && rate != 0) {
           val pressure = rate * (minutes - 1)
           valveseqs.append(
             so(
-              q,
               inp,
               num_valves,
               minutes - 1,
@@ -165,16 +132,9 @@ object d16 extends App {
         neighbors.filter { case (ns, _) => !turned.contains(ns) }.foreach {
           case (ns, nd) =>
             valveseqs.append(
-              so(q, inp, num_valves, minutes - nd, turned, acc, ns, memo)
+              so(inp, num_valves, minutes - nd, turned, acc, ns, memo)
             )
         }
-        // for (vs <- valveseqs) {
-        //   if (vs.tot > upb) {
-        //     println(vs)
-        //     println(s"$minutes $inp turned: $turned acc: $acc curr: $curr $upb")
-        //     throw new RuntimeException("Weird!")
-        //   }
-        // }
         valveseqs.maxBy(_.tot)
       }
     }
@@ -204,7 +164,6 @@ object d16 extends App {
     var memo = new Memo()
     val v =
       so(
-        One,
         paths,
         num_valves(valve_map),
         30,
