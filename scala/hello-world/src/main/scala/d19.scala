@@ -51,6 +51,7 @@ object d19 extends App {
     )
   }
 
+  var so_count = 0
   def so(
       b: Blueprint,
       minutes_left: Int,
@@ -58,6 +59,7 @@ object d19 extends App {
       memo: HashMap[(Int, State), Int]
   ): Int = {
     val v: () => Int = () => {
+      so_count += 1
       if (minutes_left == 0) s.geodes
       else {
         val next_s = step_one_minute(s)
@@ -133,6 +135,7 @@ object d19 extends App {
 
   def findBest(b: Blueprint, minutes: Int): Int = {
     var memo = HashMap[(Int, State), Int]()
+    so_count = 0
     val v = so(
       b,
       minutes,
@@ -149,6 +152,7 @@ object d19 extends App {
       memo
     )
     // println(memo)
+    println(s"So count: $so_count")
     println(s"On blueprint $b, found $v")
     v
   }
