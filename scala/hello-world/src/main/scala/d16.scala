@@ -103,12 +103,6 @@ object d16 extends App {
         if (upb < memo.best) {
           return ValveSeq(0, List())
         }
-        // if (
-        //   q == One &&
-        //   upper_bound(minutes, inp, turned, acc, curr) < memo.best
-        // ) {
-        //   return ValveSeq(0, List())
-        // }
         val neighbors = inp(curr).tunnels
         val rate = inp(curr).rate
         var valveseqs = ArrayBuffer[ValveSeq]()
@@ -128,12 +122,13 @@ object d16 extends App {
               memo
             )
           )
-        }
-        neighbors.filter { case (ns, _) => !turned.contains(ns) }.foreach {
-          case (ns, nd) =>
-            valveseqs.append(
-              so(inp, num_valves, minutes - nd, turned, acc, ns, memo)
-            )
+        } else {
+          neighbors.filter { case (ns, _) => !turned.contains(ns) }.foreach {
+            case (ns, nd) =>
+              valveseqs.append(
+                so(inp, num_valves, minutes - nd, turned, acc, ns, memo)
+              )
+          }
         }
         valveseqs.maxBy(_.tot)
       }
