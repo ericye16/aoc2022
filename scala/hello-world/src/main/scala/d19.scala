@@ -74,6 +74,12 @@ object d19 extends App {
         // println(s"Final state $s")
         (next_acc, s.geodes)
       } else {
+        val upper_bound =
+          (minutes_left * s.geode_robots + s.geodes +
+            (minutes_left * (minutes_left - 1)) / 2)
+        if (upper_bound < memo.best) {
+          return (next_acc, 0)
+        }
         val mm = 24 - minutes_left
         // println(s"$mm $s")
         val next_s = step_minutes(s)
@@ -233,7 +239,17 @@ object d19 extends App {
         next_states.maxBy { case (_, sc) => sc }
       }
     }
-    memo.map.getOrElseUpdate((minutes_left, s), v())
+    memo.map.get((minutes_left, s)) match {
+      case Some(v) => v
+      case None => {
+        val vv = v()
+        memo.map((minutes_left, s)) = vv
+        if (vv._2 > memo.best) {
+          memo.best = vv._2
+        }
+        vv
+      }
+    }
   }
 
   def findBest(b: Blueprint, minutes: Int): Int = {
