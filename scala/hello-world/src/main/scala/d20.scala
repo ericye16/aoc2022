@@ -30,12 +30,12 @@ object d20 extends App {
         }
         idx_to_pos(idx) = end_pos
         pos_to_idx(end_pos) = idx
-
-        for (i <- 0 until n) {
-          output_array(i) = inp(pos_to_idx(i)) * mul
-        }
       }
       // println(r, ": ", output_array.mkString(","))
+    }
+
+    for (i <- 0 until n) {
+      output_array(i) = inp(pos_to_idx(i)) * mul
     }
     var zidx = output_array.indexWhere(_ == 0)
     val (c0, c1, c2) = (
