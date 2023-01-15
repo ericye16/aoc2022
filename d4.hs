@@ -28,8 +28,9 @@ overLapping :: (MRange, MRange) -> Bool
 overLapping (a, b) = overLapping0 (a, b) || overLapping0 (b, a)
 
 overLapping2 :: (MRange, MRange) -> Bool
-overLapping2 (a, b) = (lo a <= lo b && hi a >= lo b) ||
-  (lo b <= lo a && hi b >= lo a)
+overLapping2 (a, b) =
+  (lo a <= lo b && hi a >= lo b)
+    || (lo b <= lo a && hi b >= lo a)
 
 main = do
   args <- getArgs

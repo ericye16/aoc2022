@@ -290,6 +290,6 @@ object d19 extends App {
   }
 
   val inp = common.readFile(args(0)).map(parseLine)
-  // println(p1(inp))
+  println(p1(inp))
   println(p2(inp))
 }
