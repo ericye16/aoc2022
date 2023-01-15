@@ -74,6 +74,8 @@ object d19 extends App {
         // println(s"Final state $s")
         (next_acc, s.geodes)
       } else {
+        // Upper bound: 2 minutes left, build one robot, create one geode
+        // Upper bound: 3 minutes left, build one robot, build one robot (create one geode), create 2 geodes
         val upper_bound =
           (minutes_left * s.geode_robots + s.geodes +
             (minutes_left * (minutes_left - 1)) / 2)
@@ -190,7 +192,7 @@ object d19 extends App {
             val next_obsidian_robot_clay =
               next_robot(s.clays, clay_rate, b.obsidian_clay)
             val next_obsidian_robot =
-              if (s.ores > b.obsidian_ore && s.clays > b.obsidian_clay) {
+              if (s.ores >= b.obsidian_ore && s.clays >= b.obsidian_clay) {
                 Math.max(next_obsidian_robot_clay, next_obsidian_robot_ore)
               } else {
                 Math.min(next_obsidian_robot_clay, next_obsidian_robot_ore)
@@ -200,7 +202,7 @@ object d19 extends App {
             val next_geode_robot_obsidian =
               next_robot(s.obsidians, obsidian_rate, b.geode_obsidian)
             val next_geode_robot =
-              if (s.ores > b.geode_ore && s.obsidians > b.geode_obsidian) {
+              if (s.ores >= b.geode_ore && s.obsidians >= b.geode_obsidian) {
                 Math.max(next_geode_robot_obsidian, next_geode_robot_ore)
               } else {
                 Math.min(next_geode_robot_obsidian, next_geode_robot_ore)
@@ -288,20 +290,6 @@ object d19 extends App {
   }
 
   val inp = common.readFile(args(0)).map(parseLine)
-  // println(so(inp(0), (24 - 21), State(3, 29, 2, 3, 1, 4, 2, 2), HashMap()))
-  // println(so(inp(0), (24 - 18), State(2, 17, 3, 0, 1, 4, 2, 1), HashMap()))
-  // println(
-  //   so(
-  //     Blueprint(1, 10, 1000, 1000, 1000, 1000, 1000),
-  //     10,
-  //     State(11, 0, 0, 0, 1, 0, 0, 0),
-  //     HashMap()
-  //   )
-  // )
-  // println(so(inp(0), (24 - 15), State(1, 5, 4, 0, 1, 4, 2, 0), HashMap()))
-  // println(so(inp(0), (24 - 16), State(2, 9, 6, 0, 1, 4, 2, 0), HashMap()))
-  // println(so(inp(0), (24 - 17), State(3, 13, 8, 0, 1, 4, 2, 0), HashMap()))
-  println(p1(inp))
-  // println(so(inp(20), 8, List(), State(4, 8, 3, 0, 1, 2, 1, 0), new Memo))
-  // println(p2(inp))
+  // println(p1(inp))
+  println(p2(inp))
 }
