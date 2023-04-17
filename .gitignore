@@ -67,3 +67,5 @@ bin/
 
 # general
 *.class
+
+input.txt
