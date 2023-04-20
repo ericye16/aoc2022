@@ -138,18 +138,32 @@ fn parse(inpt: &str, map: &mut Map) -> MapSingleTime {
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+enum MoveState {
+    Not,
+    ReachedBottom,
+    ReachedTop,
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 struct Position {
     x: i32,
     y: i32,
     time_step: u32,
+    moved_state: MoveState,
 }
 
-fn p1(inpt: &str) -> i64 {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Problem {
+    One,
+    Two,
+}
+
+fn p1(inpt: &str, problem: Problem) -> i64 {
     let mut map = Map(vec![]);
     let first_map = parse(inpt, &mut map);
     let xlen = map.len() as i32;
     let ylen = map[0].len() as i32;
-    let last_line = map.len() - 1;
+    let last_line = map.len() as i32 - 1;
     let mut y = None;
     for (y0, char) in map[0].iter().enumerate() {
         if *char == '.' {
@@ -163,6 +177,7 @@ fn p1(inpt: &str) -> i64 {
         x: 0,
         y: y.unwrap() as i32,
         time_step: 0,
+        moved_state: MoveState::Not,
     });
     let mut maps = vec![first_map];
     let time_step = loop {
@@ -171,14 +186,20 @@ fn p1(inpt: &str) -> i64 {
             continue;
         }
         visited.insert(position);
-        if position.x == last_line as i32 {
+        if problem == Problem::One && position.x == last_line {
+            break position.time_step;
+        }
+        if problem == Problem::Two
+            && position.x == last_line
+            && position.moved_state == MoveState::ReachedTop
+        {
             break position.time_step;
         }
         let next_step = position.time_step + 1;
         // println!("{position:?}");
         if maps.len() as u32 <= next_step {
             maps.push(maps.last().unwrap().next());
-            println!("Trying step {}", next_step);
+            // println!("Trying step {}", next_step);
         }
         let next_map = &maps[next_step as usize];
         // next_map.print_map();
@@ -198,10 +219,18 @@ fn p1(inpt: &str) -> i64 {
                 && ny < ylen
                 && next_map.occupied_map[nx as usize][ny as usize] == '.'
             {
+                let next_state = if nx == 0 && position.moved_state == MoveState::ReachedBottom {
+                    MoveState::ReachedTop
+                } else if nx == last_line && position.moved_state == MoveState::Not {
+                    MoveState::ReachedBottom
+                } else {
+                    position.moved_state
+                };
                 let pos = Position {
                     x: nx,
                     y: ny,
                     time_step: next_step,
+                    moved_state: next_state,
                 };
                 // println!("{pos:?}");
                 positions_queue.push_front(pos);
@@ -215,5 +244,6 @@ fn main() {
     let input_string = std::fs::read_to_string(std::env::args().nth(1).expect("Need filename"))
         .expect("Couldn't read");
 
-    println!("p1: {}", p1(&input_string));
+    println!("p1: {}", p1(&input_string, Problem::One));
+    println!("p2: {}", p1(&input_string, Problem::Two));
 }
