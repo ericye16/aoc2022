@@ -222,38 +222,39 @@ fn find_proposal(
 
 fn p1(positions: &Positions, num_rounds: Option<i32>) -> i64 {
     let mut positions = positions.clone();
-    let mut facings = Vec::with_capacity(positions.len());
-    for _ in &*positions {
-        facings.push(North);
-    }
+    let mut facing = North;
     // println!("Initial state");
     // println!("{}", positions);
     let mut round = 0;
     loop {
-        let pre_move = positions.clone();
+        // let pre_move = positions.clone();
         let mut proposed_map = BiHashMap::new();
         let mut conflicts = HashSet::new();
         for (idx, position) in &*positions {
-            let first_direction = facings[*idx];
-            let proposed_position = find_proposal(*position, first_direction, &positions);
+            let proposed_position = find_proposal(*position, facing, &positions);
             let overwritten = proposed_map.insert(*idx, proposed_position);
-            if let bimap::Overwritten::Right(l_idx, _) = overwritten {
-                conflicts.insert(*idx);
-                conflicts.insert(l_idx);
-            } else if let bimap::Overwritten::Neither = overwritten { /* safe! */
-            } else {
-                panic!("ohno {overwritten:?}");
+            match overwritten {
+                bimap::Overwritten::Right(l_idx, _) => {
+                    conflicts.insert(*idx);
+                    conflicts.insert(l_idx);
+                }
+                bimap::Overwritten::Neither => (),
+                _ => panic!("ohno {overwritten:?}"),
             }
-
-            facings[*idx] = first_direction.next();
         }
+        let mut moved = false;
+        facing = facing.next();
         for (idx, position) in proposed_map {
             if conflicts.contains(&idx) {
                 continue;
             }
-            positions.insert(idx, position);
+            match positions.insert(idx, position) {
+                bimap::Overwritten::Left(_, _) => moved = true,
+                bimap::Overwritten::Pair(_, _) => (),
+                _ => panic!(),
+            }
         }
-        // println!("After round {}", round + 1);
+        println!("After round {}", round + 1);
         // println!("{}", positions);
         round += 1;
         if let Some(num_rounds) = num_rounds {
@@ -261,7 +262,7 @@ fn p1(positions: &Positions, num_rounds: Option<i32>) -> i64 {
                 break;
             }
         }
-        if num_rounds.is_none() && pre_move == positions {
+        if num_rounds.is_none() && !moved {
             return round.into();
         }
     }
