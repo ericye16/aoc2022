@@ -1,5 +1,3 @@
-use std::default;
-
 type Input = (Vec<Vec<char>>, Vec<Move>);
 
 #[derive(Debug, Clone, Copy)]
@@ -172,213 +170,6 @@ enum CubeFace {
     Left,
 }
 
-fn project_onto_cube(map: &Vec<Vec<char>>, old_pos: &Position) -> Position {
-    assert!(map.len() % 4 == 0);
-    assert!(map.len() % 50 != 0);
-    // Can determine solely based on previous face and facing
-    const SIDE_LENGTH: i32 = 4;
-    let (net_side_x, net_side_y) = (old_pos.x / SIDE_LENGTH, old_pos.y / SIDE_LENGTH);
-    let cube_face = match (net_side_x, net_side_y) {
-        (0, 2) => CubeFace::Top,
-        (1, 0) => CubeFace::Front,
-        (1, 1) => CubeFace::Right,
-        (1, 2) => CubeFace::Back,
-        (2, 2) => CubeFace::Bottom,
-        (2, 3) => CubeFace::Left,
-        _ => panic!("Nonmatching cubeface"),
-    };
-    let new_position = match cube_face {
-        CubeFace::Top => {
-            match old_pos.facing {
-                Facing::Left => {
-                    // Top / left => right, facing down
-                    assert!(old_pos.y == 2 * SIDE_LENGTH);
-                    Position {
-                        x: 1 * SIDE_LENGTH,
-                        y: old_pos.x + 1 * SIDE_LENGTH,
-                        facing: Facing::Down,
-                    }
-                }
-                Facing::Right => {
-                    // Top / right => left, facing left
-                    assert!(old_pos.y == 3 * SIDE_LENGTH - 1);
-                    Position {
-                        x: 2 * SIDE_LENGTH + (SIDE_LENGTH - 1 - old_pos.x),
-                        y: 4 * SIDE_LENGTH - 1,
-                        facing: Facing::Left,
-                    }
-                }
-                Facing::Up => {
-                    // Top / up => front, facing down
-                    assert!(old_pos.x == 0 * SIDE_LENGTH);
-                    Position {
-                        x: 1 * SIDE_LENGTH,
-                        y: 3 * SIDE_LENGTH - 1 - old_pos.y,
-                        facing: Facing::Down,
-                    }
-                }
-                Facing::Down => {
-                    panic!("Cannot down from top");
-                }
-            }
-        }
-        CubeFace::Front => {
-            match old_pos.facing {
-                Facing::Right => panic!("Cannot right from front"),
-                Facing::Up => {
-                    // Front / up => top, facing down
-                    assert!(old_pos.x == 1 * SIDE_LENGTH);
-                    Position {
-                        x: 0,
-                        y: 2 * SIDE_LENGTH + SIDE_LENGTH - 1 - old_pos.x,
-                        facing: Facing::Down,
-                    }
-                }
-                Facing::Down => {
-                    // Front / down => bottom, facing up
-                    assert!(old_pos.x == 2 * SIDE_LENGTH - 1);
-                    Position {
-                        x: 3 * SIDE_LENGTH - 1,
-                        y: 2 * SIDE_LENGTH + (SIDE_LENGTH - 1 - old_pos.y),
-                        facing: Facing::Up,
-                    }
-                }
-                Facing::Left => {
-                    // Front / left => left, facing up
-                    assert!(old_pos.y == 0);
-                    Position {
-                        x: 3 * SIDE_LENGTH - 1,
-                        y: 3 * SIDE_LENGTH + (SIDE_LENGTH - 1 - (old_pos.x - SIDE_LENGTH)),
-                        facing: Facing::Up,
-                    }
-                }
-            }
-        }
-        CubeFace::Right => {
-            match old_pos.facing {
-                Facing::Left => panic!("Cannot left from right"),
-                Facing::Right => panic!("Cannot right from right"),
-                Facing::Up => {
-                    // Right / up => top, facing right
-                    assert!(old_pos.x == 1 * SIDE_LENGTH);
-                    Position {
-                        x: old_pos.y - SIDE_LENGTH,
-                        y: 2 * SIDE_LENGTH,
-                        facing: Facing::Right,
-                    }
-                }
-                Facing::Down => {
-                    // Right / down => bottom, facing right
-                    assert!(old_pos.x == 2 * SIDE_LENGTH - 1);
-                    Position {
-                        x: 2 * SIDE_LENGTH + (old_pos.y - SIDE_LENGTH),
-                        y: 2 * SIDE_LENGTH,
-                        facing: Facing::Right,
-                    }
-                }
-            }
-        }
-        CubeFace::Back => {
-            match old_pos.facing {
-                Facing::Left => panic!("Cannot left from back"),
-                Facing::Down => panic!("Cannot down front back"),
-                Facing::Up => panic!("Cannot up from back"),
-                Facing::Right => {
-                    // Back / right => left, facing down
-                    assert!(old_pos.y == 3 * SIDE_LENGTH - 1);
-                    Position {
-                        x: 2 * SIDE_LENGTH,
-                        y: 3 * SIDE_LENGTH + (SIDE_LENGTH - 1 - (old_pos.x - 1 * SIDE_LENGTH)),
-                        facing: Facing::Down,
-                    }
-                }
-            }
-        }
-        CubeFace::Bottom => {
-            match old_pos.facing {
-                Facing::Up => panic!("Cannot up from bottom"),
-                Facing::Right => panic!("cannot right from bottom"),
-                Facing::Down => {
-                    // Bottom / down => front, facing up
-                    assert!(old_pos.x == 3 * SIDE_LENGTH - 1);
-                    Position {
-                        x: 2 * SIDE_LENGTH - 1,
-                        y: SIDE_LENGTH - 1 - (old_pos.y - 2 * SIDE_LENGTH),
-                        facing: Facing::Up,
-                    }
-                }
-                Facing::Left => {
-                    // Bottom / left => right, facing up
-                    assert!(old_pos.y == 2 * SIDE_LENGTH);
-                    Position {
-                        x: 2 * SIDE_LENGTH - 1,
-                        y: SIDE_LENGTH + (SIDE_LENGTH - 1 - (old_pos.x - 2 * SIDE_LENGTH)),
-                        facing: Facing::Up,
-                    }
-                }
-            }
-        }
-        CubeFace::Left => {
-            match old_pos.facing {
-                Facing::Left => panic!("Cannot left from left"),
-                Facing::Down => {
-                    // Left / down => front, facing right
-                    assert!(old_pos.x == 3 * SIDE_LENGTH - 1);
-                    Position {
-                        x: SIDE_LENGTH + (SIDE_LENGTH - 1 - old_pos.y - 3 * SIDE_LENGTH),
-                        y: 0,
-                        facing: Facing::Right,
-                    }
-                }
-                Facing::Right => {
-                    // Left / right => top, facing left
-                    assert!(old_pos.y == 4 * SIDE_LENGTH - 1);
-                    Position {
-                        x: SIDE_LENGTH - 1 - (old_pos.x - SIDE_LENGTH * 2),
-                        y: 3 * SIDE_LENGTH - 1,
-                        facing: Facing::Left,
-                    }
-                }
-                Facing::Up => {
-                    // Left / up => back, facing left
-                    assert!(old_pos.x == 2 * SIDE_LENGTH);
-                    Position {
-                        x: SIDE_LENGTH + (SIDE_LENGTH - 1 - (old_pos.y - 3 * SIDE_LENGTH)),
-                        y: 3 * SIDE_LENGTH - 1,
-                        facing: Facing::Left,
-                    }
-                }
-            }
-        }
-    };
-    assert!(get_at(map, &new_position) == '.' || get_at(map, &new_position) == '#');
-    new_position
-}
-
-// Next open OR closed
-fn get_next_cube(map: &Vec<Vec<char>>, pos: &Position) -> Position {
-    let (xdelta, ydelta) = match pos.facing {
-        Facing::Down => (1, 0),
-        Facing::Up => (-1, 0),
-        Facing::Left => (0, -1),
-        Facing::Right => (0, 1),
-    };
-    let mut next = pos.clone();
-    next.x += xdelta;
-    next.y += ydelta;
-    if next.x < 0
-        || next.x as usize >= map.len()
-        || next.y < 0
-        || next.y as usize >= map[next.x as usize].len()
-        || get_at(map, &next) == ' '
-    {
-        // Cube block moving
-        project_onto_cube(map, pos)
-    } else {
-        next
-    }
-}
-
 fn write_position(pos: &Position, dbg_map: &mut Vec<Vec<char>>) {
     dbg_map[pos.x as usize][pos.y as usize] = match pos.facing {
         Facing::Down => 'V',
@@ -386,8 +177,6 @@ fn write_position(pos: &Position, dbg_map: &mut Vec<Vec<char>>) {
         Facing::Up => '^',
         Facing::Right => '>',
     };
-    print_dbg_map(&dbg_map);
-    println!();
 }
 
 fn print_dbg_map(map: &Vec<Vec<char>>) {
@@ -396,60 +185,6 @@ fn print_dbg_map(map: &Vec<Vec<char>>) {
     }
 }
 
-fn not_p2(inp: &Input) -> i32 {
-    let mut position = Position {
-        x: 0,
-        y: 0,
-        facing: Facing::Right,
-    };
-    let map = &inp.0;
-    let mut dbg_map = map.clone();
-    let moves = &inp.1;
-    // find first position
-    for i in 0..map[0].len() {
-        if map[0][i] == '.' {
-            position.y = i as i32;
-            break;
-        }
-    }
-    for mov in moves {
-        println!("{mov:?}");
-        match *mov {
-            Move::Left => {
-                position.facing = match position.facing {
-                    Facing::Down => Facing::Right,
-                    Facing::Right => Facing::Up,
-                    Facing::Up => Facing::Left,
-                    Facing::Left => Facing::Down,
-                };
-                write_position(&position, &mut dbg_map);
-            }
-            Move::Right => {
-                position.facing = match position.facing {
-                    Facing::Down => Facing::Left,
-                    Facing::Right => Facing::Down,
-                    Facing::Up => Facing::Right,
-                    Facing::Left => Facing::Up,
-                };
-                write_position(&position, &mut dbg_map);
-            }
-            Move::Forward(steps) => {
-                for _ in 0..steps {
-                    let next = get_next_cube(&map, &position);
-                    if get_at(&map, &next) == '#' {
-                        break;
-                    } else {
-                        assert!(get_at(&map, &next) == '.');
-                        position = next;
-                    }
-                    write_position(&position, &mut dbg_map);
-                }
-            }
-        }
-        println!("{position:?}");
-    }
-    position.score()
-}
 #[derive(Debug, Clone)]
 struct CubeMap {
     side_length: i32,
@@ -481,6 +216,7 @@ impl CubeMap {
             for x in (xorig * side_length)..(xorig * side_length + side_length) {
                 for y in (yorig * side_length)..(yorig * side_length + side_length) {
                     let ch = map[x as usize][y as usize];
+                    assert!(ch == '.' || ch == '#');
                     let x0 = x - xorig * side_length;
                     let y0 = y - yorig * side_length;
                     let (xrot, yrot) = match facing {
@@ -597,7 +333,7 @@ impl CubeCoords {
         next
     }
 
-    fn make_move(&mut self, mov: &Move, map: &CubeMap) {
+    fn make_move(&mut self, mov: &Move, map: &CubeMap, dbg_map: &mut Vec<Vec<char>>) {
         match mov {
             Move::Left => {
                 self.facing = match self.facing {
@@ -605,7 +341,9 @@ impl CubeCoords {
                     Facing::Down => Facing::Right,
                     Facing::Left => Facing::Down,
                     Facing::Right => Facing::Up,
-                }
+                };
+                let position = map.reproject(&self);
+                write_position(&position, dbg_map);
             }
             Move::Right => {
                 self.facing = match self.facing {
@@ -613,7 +351,9 @@ impl CubeCoords {
                     Facing::Down => Facing::Left,
                     Facing::Left => Facing::Up,
                     Facing::Right => Facing::Down,
-                }
+                };
+                let position = map.reproject(&self);
+                write_position(&position, dbg_map);
             }
             Move::Forward(iters) => {
                 for _ in 0..*iters {
@@ -622,6 +362,8 @@ impl CubeCoords {
                         break;
                     } else {
                         *self = next;
+                        let position = map.reproject(&self);
+                        write_position(&position, dbg_map);
                     }
                 }
             }
@@ -650,42 +392,57 @@ impl CubeCoords {
     }
 }
 
-fn p2(input: &Input) -> i64 {
+fn p2(input: &Input, side_length: i32) -> i32 {
+    let mut dbg_map = input.0.clone();
     let original_map = &input.0;
     let moves = &input.1;
-    let cube_map = CubeMap::from(
-        original_map,
-        4,
-        [
-            /* top */ (0, 2, Facing::Left),
-            /* front */ (1, 0, Facing::Up),
-            /* right */ (1, 1, Facing::Left),
-            /* back */ (1, 2, Facing::Right),
-            /* bottom */ (2, 2, Facing::Up),
-            /* left */ (2, 3, Facing::Left),
-        ],
-    );
-    let mut position = CubeCoords {
-        x: 0,
-        y: 3,
-        facing: Facing::Down,
-        face: CubeFace::Top,
+    let ((x, y, facing, face), cube_infos) = match side_length {
+        4 => (
+            (0, 3, Facing::Down, CubeFace::Top),
+            [
+                /* top */ (0, 2, Facing::Left),
+                /* front */ (1, 0, Facing::Up),
+                /* right */ (1, 1, Facing::Left),
+                /* back */ (1, 2, Facing::Right),
+                /* bottom */ (2, 2, Facing::Up),
+                /* left */ (2, 3, Facing::Left),
+            ],
+        ),
+        50 => (
+            (0, 0, Facing::Up, CubeFace::Top),
+            [
+                /* top */ (0, 1, Facing::Up),
+                /* front */ (0, 2, Facing::Left),
+                /* right */ (3, 0, Facing::Down),
+                /* back */ (2, 0, Facing::Up),
+                /* bottom */ (2, 1, Facing::Left),
+                /* left */ (1, 1, Facing::Down),
+            ],
+        ),
+        _ => panic!(),
     };
+    let cube_map = CubeMap::from(original_map, side_length, cube_infos);
+    let mut position = CubeCoords { x, y, facing, face };
     for mov in moves {
         println!("{:?}", mov);
-        position.make_move(mov, &cube_map);
+        position.make_move(mov, &cube_map, &mut dbg_map);
         position.display(&cube_map);
     }
     let projected_position = cube_map.reproject(&position);
-    dbg!(projected_position);
-    projected_position.score().into()
+    println!("{:?}", projected_position);
+    print_dbg_map(&dbg_map);
+    projected_position.score()
 }
 
 fn main() {
     let input_string = std::fs::read_to_string(std::env::args().nth(1).expect("Need input string"))
         .expect("Couldn't read file");
+    let side_length = std::env::args()
+        .nth(2)
+        .expect("expect side length")
+        .parse::<i32>()
+        .unwrap();
     let input = parse(input_string);
-    // println!("{input:?}");
     println!("{}", p1(&input));
-    println!("{}", p2(&input));
+    println!("{}", p2(&input, side_length));
 }
